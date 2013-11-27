@@ -102,8 +102,9 @@ class ResourceGraphRoute implements RouteInterface
 
     /**
      * {@inheritDoc}
+     * @param int $pathOffset
      */
-    public function match(Request $request)
+    public function match(Request $request, $pathOffset = null)
     {
         if (!method_exists($request, 'getUri')) {
             return null;
@@ -112,6 +113,10 @@ class ResourceGraphRoute implements RouteInterface
         /* @var $request \Zend\Http\Request */
         $uri         = $request->getUri();
         $path        = $uri->getPath();
+        if($pathOffset)
+        {
+            $path = substr($path, $pathOffset);
+        }
         
         // we must ommit the basePath
         if (method_exists($request, 'getBaseUrl') && $baseUrl = $request->getBaseUrl()) {
@@ -142,16 +147,17 @@ class ResourceGraphRoute implements RouteInterface
             return null;
         }
 
-        return $this->matchIdentifier($this->resource, $identifierPath);
+        return $this->matchIdentifier($this->resource, $identifierPath, strlen($path));
     }
 
     /**
      * @param  ResourceInterface $resource
-     * @param  string            $path
-     * @throws Exception\RuntimeException
+     * @param  string $path
+     * @param  int $pathLength
+     * @throws \ZfrRest\Mvc\Exception\RuntimeException
      * @return RouteMatch|null
      */
-    protected function matchIdentifier(ResourceInterface $resource, $path)
+    protected function matchIdentifier(ResourceInterface $resource, $path, $pathLength)
     {
         $path          = trim($path, '/');
         $classMetadata = $resource->getMetadata()->getClassMetadata();
@@ -182,7 +188,7 @@ class ResourceGraphRoute implements RouteInterface
 
         // If empty, then we have processed the whole path
         if (empty($chunks)) {
-            return $this->buildRouteMatch($resource, $path);
+            return $this->buildRouteMatch($resource, $path, $pathLength);
         }
 
         return $this->matchAssociation($resource, substr($path, strpos($path, '/')));
@@ -221,7 +227,7 @@ class ResourceGraphRoute implements RouteInterface
             return $this->buildRouteMatch($resource, $path);
         }
 
-        return $this->matchIdentifier($resource, substr($path, strpos($path, '/')));
+        return $this->matchIdentifier($resource, substr($path, strpos($path, '/')), strlen($path));
     }
 
     /**
@@ -229,11 +235,12 @@ class ResourceGraphRoute implements RouteInterface
      * optional filtering by query
      *
      * @param  ResourceInterface $resource
-     * @param  string           $path
-     * @throws Exception\RuntimeException
+     * @param  string $path
+     * @param  int $pathLength
+     * @throws \ZfrRest\Mvc\Exception\RuntimeException
      * @return RouteMatch
      */
-    protected function buildRouteMatch(ResourceInterface $resource, $path)
+    protected function buildRouteMatch(ResourceInterface $resource, $path, $pathLength = null)
     {
         $resourceMetadata   = $resource->getMetadata();
         $collectionMetadata = $resourceMetadata->getCollectionMetadata();
@@ -271,7 +278,7 @@ class ResourceGraphRoute implements RouteInterface
                 'resource'   => $resource,
                 'controller' => $controllerName
             ),
-            strlen($path)
+            $pathLength ?: strlen($path)
         );
     }
 
